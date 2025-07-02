@@ -71,6 +71,7 @@ SOFTWARE WILL NOT INFRINGE ANY PATENT, TRADEMARK OR OTHER RIGHTS.
 // Any large value will do; it doesn't enter the energy or forces below about 1e-12 anyway
 const double BIGNUM = 1e50;
 
+
 namespace elec {
 
 const double PIQSRT = sqrt(M_PI);
@@ -747,7 +748,7 @@ void Electrostatics::Hack3GetPotentialAtPoints(std::vector<double> coordinates) 
                     size_j, nmon1, size_j, i, 0, Ai, Asqsqi, aCC_local, aCC_1_4_local,  // This second is the aCC_1_4_
                     g34_, &ex_thread, &ey_thread, &ez_thread, &phi1_thread, phi_sitej.data(), Efq_sitej.data(),
                     elec_scale_factor, ewald_alpha_, use_pbc_, box_, box_inverse_, cutoff_, use_ghost, islocal_all_,
-                    fi_mon1 + m1, fi_mon2, m2init, &virial_thread);
+                    fi_mon1 + m1, fi_mon2, m2init, lambda_, &virial_thread );
 
                 // Put proper data in field and electric field of j
                 for (size_t ind = 0; ind < size_j; ind++) {
@@ -1079,7 +1080,7 @@ void Electrostatics::Hack3GetPotentialAtPoints(std::vector<double> coordinates) 
                         chg_j.data(), mu_all_.data() + fi_crd1, mu_j.data(), m1, m2init, nmon2, nmon1, nmon2, i, j,
                         aDD_local, aCD_local, Asqsqi, &ex_thread, &ey_thread, &ez_thread, &phi1_thread,
                         phi_2_pool[rank].data(), grad_2_pool[rank].data(), 1, ewald_alpha_, use_pbc_, box_,
-                        box_inverse_, cutoff_, use_ghost, islocal_all_, fi_mon1 + m1, fi_mon2, &virial_pool[rank]);
+                        box_inverse_, cutoff_, use_ghost, islocal_all_, fi_mon1 + m1, fi_mon2, lambda_, &virial_pool[rank]);
                     grad_1_pool[rank][inmon13 + m1] += ex_thread;
                     grad_1_pool[rank][inmon13 + nmon1 + m1] += ey_thread;
                     grad_1_pool[rank][inmon13 + nmon12 + m1] += ez_thread;
@@ -1287,7 +1288,8 @@ void Electrostatics::CalculateInducedGradientsExternal(std::vector<double> &grad
 void Electrostatics::SetNewParameters(const std::vector<double> &xyz, const std::vector<double> &chg,
                                       const std::vector<double> &chg_grad, const std::vector<double> &pol,
                                       const std::vector<double> &polfac, const std::string dip_method,
-                                      const bool do_grads, const std::vector<double> &box, const double cutoff) {
+                                      const bool do_grads, const std::vector<double> &box, const double cutoff,
+                                      const double lambda) {
 #ifdef DEBUG
     std::cerr << std::scientific << std::setprecision(10);
     std::cerr << "\nEntering " << __func__ << " in " << __FILE__ << std::endl;
@@ -1343,6 +1345,7 @@ void Electrostatics::SetNewParameters(const std::vector<double> &xyz, const std:
     box_ = box;
     use_pbc_ = box.size();
     cutoff_ = cutoff;
+    lambda_ = lambda;
     box_ABCabc_ = box.size() ? BoxVecToBoxABCabc(box) : std::vector<double>{};
     if (use_pbc_) box_inverse_ = InvertUnitCell(box_);
 
@@ -1630,7 +1633,7 @@ void Electrostatics::CalculatePermanentElecFieldMPIlocal(std::vector<Precomputed
                             chg_all_.data() + fi_sites, m, m, m + 1, nmon, nmon, i, j, Ai, Asqsqi, aCC_, aCC1_4_, g34_,
                             &ex, &ey, &ez, &phi1, phi_all_.data() + fi_sites, Efq_all_.data() + fi_crd,
                             elec_scale_factor, ewald_alpha_, simcell_periodic_, box_PMElocal_, box_inverse_PMElocal_,
-                            cutoff_, use_ghost, islocal_all_, fi_mon + m, fi_mon, 0, &virial_);
+                            cutoff_, use_ghost, islocal_all_, fi_mon + m, fi_mon, 0, lambda_, &virial_);
                         phi_all_[fi_sites + inmon + m] += phi1;
                         Efq_all_[fi_crd + inmon3 + m] += ex;
                         Efq_all_[fi_crd + inmon3 + nmon + m] += ey;
@@ -1849,7 +1852,7 @@ void Electrostatics::CalculatePermanentElecFieldMPIlocal(std::vector<Precomputed
                             m1, 0, reordered_mon2_size, nmon1, reordered_mon2_size, i, 0, Ai, Asqsqi, aCC_, aCC1_4_, g34_, &ex_thread, &ey_thread,
                             &ez_thread, &phi1_thread, reordered_phi2.data(), reordered_Efq2.data(), elec_scale_factor,
                             ewald_alpha_, simcell_periodic_, box_PMElocal_, box_inverse_PMElocal_, cutoff_, use_ghost, reordered_islocal, 0,
-                            1, 0, precomp_info, &virial_thread);
+                            1, 0, precomp_info, lambda_, &virial_thread);
                         
                         double *Efq2 = Efq_sitej.data();
                         double *phi2 = phi_sitej.data();
@@ -2195,7 +2198,7 @@ void Electrostatics::CalculatePermanentElecField(std::vector<PrecomputedInfo*>& 
                         chg_all_.data() + fi_sites, m, m, m + 1, nmon, nmon, i, j, Ai, Asqsqi, aCC_, aCC1_4_, g34_, &ex,
                         &ey, &ez, &phi1, phi_all_.data() + fi_sites, Efq_all_.data() + fi_crd, elec_scale_factor,
                         ewald_alpha_, use_pbc_, box_, box_inverse_, cutoff_, use_ghost, islocal_, fi_mon + m, fi_mon,
-                        fi_mon, &virial_);
+                        fi_mon, lambda_, &virial_);
                     phi_all_[fi_sites + inmon + m] += phi1;
                     Efq_all_[fi_crd + inmon3 + m] += ex;
                     Efq_all_[fi_crd + inmon3 + nmon + m] += ey;
@@ -2412,7 +2415,7 @@ void Electrostatics::CalculatePermanentElecField(std::vector<PrecomputedInfo*>& 
                             m1, 0, reordered_mon2_size, nmon1, reordered_mon2_size, i, 0, Ai, Asqsqi, aCC_, aCC1_4_, g34_, &ex_thread, &ey_thread,
                             &ez_thread, &phi1_thread, reordered_phi2.data(), reordered_Efq2.data(), elec_scale_factor,
                             ewald_alpha_, use_pbc_, box_, box_inverse_, cutoff_, use_ghost, reordered_islocal, 0,
-                            1, 0, precomp_info, &virial_thread);
+                            1, 0, precomp_info, lambda_, &virial_thread);
                         
                         double *Efq2 = Efq_sitej.data();
                         double *phi2 = phi_sitej.data();
@@ -8025,8 +8028,8 @@ void Electrostatics::CalculateGradientsMPIlocal(std::vector<PrecomputedInfo*>& p
                             chg_all_.data() + fi_sites, mu_all_.data() + fi_crd, mu_all_.data() + fi_crd, m, m, m + 1,
                             nmon, nmon, i, j, aDD, aCD_, Asqsqi, &ex, &ey, &ez, &phi1, phi_all_.data() + fi_sites,
                             grad_.data() + fi_crd, elec_scale_factor, ewald_alpha_, simcell_periodic_, box_PMElocal_,
-                            box_inverse_PMElocal_, cutoff_, use_ghost, islocal_all_, fi_mon + m, fi_mon, &virial_);
-                        phi_all_[fi_sites + inmon + m] += phi1;
+                            box_inverse_PMElocal_, cutoff_, use_ghost, islocal_all_, fi_mon + m, fi_mon, lambda_, &virial_);
+                        phi_all_[fi_sites + inmon + m] += phi1; 
                         grad_[fi_crd + inmon3 + m] += ex;
                         grad_[fi_crd + inmon3 + nmon + m] += ey;
                         grad_[fi_crd + inmon3 + nmon2 + m] += ez;
@@ -8202,7 +8205,7 @@ void Electrostatics::CalculateGradientsMPIlocal(std::vector<PrecomputedInfo*>& p
                             reordered_mon2_size, nmon1, reordered_mon2_size, i, 0, aDD, aCD_, Asqsqi, &ex_thread, &ey_thread, &ez_thread,
                             &phi1_thread, reordered_phi2.data(), reordered_grad2.data(), 1, ewald_alpha_, 
                             simcell_periodic_, box_PMElocal_, box_inverse_PMElocal_, cutoff_, use_ghost, 
-                            reordered_islocal, 0, 1, precomp_info, &virial_pool[rank]);
+                            reordered_islocal, 0, 1, precomp_info, lambda_, &virial_pool[rank]);
 
                         // Revert the reordering of grad2 and phi2
                         double *phi2 = phi_2_pool[rank].data();
@@ -8905,7 +8908,7 @@ void Electrostatics::CalculateGradients(std::vector<PrecomputedInfo*>& precomput
                         chg_all_.data() + fi_sites, mu_all_.data() + fi_crd, mu_all_.data() + fi_crd, m, m, m + 1, nmon,
                         nmon, i, j, aDD, aCD_, Asqsqi, &ex, &ey, &ez, &phi1, phi_all_.data() + fi_sites,
                         grad_.data() + fi_crd, elec_scale_factor, ewald_alpha_, use_pbc_, box_, box_inverse_, cutoff_,
-                        use_ghost, islocal_all_, fi_mon + m, fi_mon, &virial_);
+                        use_ghost, islocal_all_, fi_mon + m, fi_mon, lambda_, &virial_);
                     phi_all_[fi_sites + inmon + m] += phi1;
                     grad_[fi_crd + inmon3 + m] += ex;
                     grad_[fi_crd + inmon3 + nmon + m] += ey;
@@ -9077,7 +9080,7 @@ void Electrostatics::CalculateGradients(std::vector<PrecomputedInfo*>& precomput
                             reordered_chg.data(), mu_all_.data() + fi_crd1, reordered_mu.data(), m1, 0,
                             reordered_mon2_size, nmon1, reordered_mon2_size, i, 0, aDD, aCD_, Asqsqi, &ex_thread, &ey_thread, &ez_thread,
                             &phi1_thread, reordered_phi2.data(), reordered_grad2.data(), 1, ewald_alpha_, use_pbc_,
-                            box_, box_inverse_, cutoff_, use_ghost, reordered_islocal, 0, 1, precomp_info,
+                            box_, box_inverse_, cutoff_, use_ghost, reordered_islocal, 0, 1, precomp_info,lambda_,
                             &virial_pool[rank]);
                         
                         double *phi2 = phi_2_pool[rank].data();

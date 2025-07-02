@@ -125,6 +125,8 @@ System::System() {
     proc_grid_x_ = 1;
     proc_grid_y_ = 1;
     proc_grid_z_ = 1;
+
+    lambda_ = 1.0; // Add this line to initialize lambda
 }
 System::~System() {}
 
@@ -1558,6 +1560,16 @@ void System::SetUpFromJson(nlohmann::json j) {
         // if (mpi_rank_ == 0) std::cerr << "**WARNING** \"monomers_file\" is not defined in json file.\n";
     }
     mbx_j_["MBX"]["monomers_file"] = monomers_json_file;
+
+    // Try to get lambda
+    // Default: 1.0
+    try {
+        lambda_ = j["MBX"]["lambda"];
+    } catch (...) {
+        // if (mpi_rank_ == 0)
+        //     std::cerr << "**WARNING** \"lambda\" is not defined in json file. Using default value 1.0\n";
+    }
+    mbx_j_["MBX"]["lambda"] = lambda_;
 
     SetPBC(box_);
 }
@@ -3575,7 +3587,7 @@ void System::SetPeriodicity(bool periodic) {
 ////////////////////////////////////////////////////////////////////////////////
 
 double System::GetElectrostatics(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
@@ -3587,7 +3599,7 @@ double System::GetElectrostatics(bool do_grads, bool use_ghost) {
 }
 
 double System::GetElectrostaticsMPIlocal(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
@@ -3862,6 +3874,16 @@ std::vector<double> System::GetInfoElectrostaticsTimings() { return electrostati
 
 std::vector<size_t> System::GetInfoDispersionCounts() { return dispersionE_.GetInfoCounts(); }
 std::vector<double> System::GetInfoDispersionTimings() { return dispersionE_.GetInfoTimings(); }
+
+////////////////////////////////////////////////////////////////////////////////
+
+double System::GetLambda() const {
+    return lambda_;
+}
+
+void System::SetLambda(double lambda) {
+    lambda_ = lambda;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

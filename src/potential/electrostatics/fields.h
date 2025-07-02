@@ -150,7 +150,8 @@ class ElectricFieldHolder {
                                 bool use_ghost,                          // use ghost monomers
                                 const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
                                 const size_t m2_offset,
-                                std::vector<double> *virial = 0);  // The virial);
+                                double lambda,                           // Moved lambda before virial
+                                std::vector<double> *virial = 0);        // The virial, now at the end 
 
     // Computes the electric field for a pair of sites for a number of monomers
     // # = mon2_index_end - mon2_index_start when A=polfac[i] * polfac[j] > 0
@@ -183,7 +184,8 @@ class ElectricFieldHolder {
                                 const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
                                 const size_t m2_offset,
                                 PrecomputedInfo& precomputedInformation, // Contains precomputed coordinate-dependant calculations
-                                std::vector<double> *virial = 0);  // The virial);
+                                double lambda,                           // Moved lambda before virial
+                                std::vector<double> *virial = 0);        // The virial, now at the end 
 
     ////////////////////////////////////////////////////////////////////////////////
     // DIPOLE ELECTRIC FIELD ///////////////////////////////////////////////////////
@@ -331,6 +333,7 @@ class ElectricFieldHolder {
                             double cutoff,                           // The real space cutoff for pairs
                             bool use_ghost,                          // use ghost monomers
                             const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
+                            double lambda,                           // Moved lambda before virial
                             std::vector<double> *virial = 0  // the virial
     );
 
@@ -361,6 +364,7 @@ class ElectricFieldHolder {
                             bool use_ghost,                          // use ghost monomers
                             const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
                             PrecomputedInfo& precomputedInformation,
+                            double lambda,                           // Moved lambda before virial
                             std::vector<double> *virial = 0  // the virial
     );
 

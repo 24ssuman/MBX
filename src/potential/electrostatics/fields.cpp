@@ -35,6 +35,11 @@ SOFTWARE WILL NOT INFRINGE ANY PATENT, TRADEMARK OR OTHER RIGHTS.
 #include "fields.h"
 #include <iomanip>
 
+// Constants for the soft core electrostatic potential
+const double n = 1.0;
+const double alpha_c = 10.0;
+const double tolerance = 1e-5; 
+
 namespace elec {
 
 ElectricFieldHolder::ElectricFieldHolder(size_t n) {
@@ -62,7 +67,8 @@ void ElectricFieldHolder::CalcPermanentElecField(
     double *phi2, double *Efq2, double elec_scale_factor, double ewald_alpha, bool use_pbc,
     const std::vector<double> &box, const std::vector<double> &box_inverse, double cutoff, bool use_ghost,
     const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset, size_t m2_offset,
-    std::vector<double> *virial) {
+    double lambda, std::vector<double> *virial
+) {
 
     // These shifts are for vector indexing and will be useful in the loops
     const size_t nmon12 = nmon1 * 2;
@@ -243,7 +249,7 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
     double *phi2, double *Efq2, double elec_scale_factor, double ewald_alpha, bool use_pbc,
     const std::vector<double> &box, const std::vector<double> &box_inverse, double cutoff, bool use_ghost,
     const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset, size_t m2_offset,
-    PrecomputedInfo& precomputedInformation,
+    PrecomputedInfo& precomputedInformation, double lambda,
     std::vector<double> *virial) {
 
     double *rijx_vec = precomputedInformation.rijx.data();
@@ -319,47 +325,103 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
         //         rijz = box[2] * fracrijx + box[5] * fracrijy + box[8] * fracrijz;
         //     }
 
-        double v3 = rijx * rijx + rijy * rijy + rijz * rijz;  // r2
+        double r_sq = rijx * rijx + rijy * rijy + rijz * rijz; // This is the real r^2
 
-        // Store a*(r/A)^4 in vector
-        double v5 = aCC * v3 * v3 * Asqsqi;  // a*(r/A)^4
+        // --- Final variables to be used ---
+        double s0r;
+        double s1r3;
 
-        // Convert r2 -> 1/r
-        v3 = 1 / std::sqrt(v3);
+        std::cout << "opt: chr1: " << chg1[site_inmon1 + mon1_index] << ", chr2: " << chg2[site_jnmon2 + m] << std::endl;
 
-        // Cheesy way to apply cutoffs, for now!
-        v3 *= (v3 < 1.0 / cutoff ? 0 : 1);
+        // --- Check for Soft Core and apply modifications ---
+        if ((std::abs(chg1[site_inmon1 + mon1_index] - lambda) < tolerance ||
+            std::abs(chg2[site_jnmon2 + m] - lambda) < tolerance) && r_sq < cutoff * cutoff)
+        {
+            // --- SOFT-CORE Case ---
 
-        // Store the attenuated coulomb operator in vector
-        double v4 = (elec_scale_factor - erf(ewald_alpha / (v3 + 1e-30))) * v3;  // (1-erf(alpha r))/r
+            // In this block, the standard 1/r Coulomb potential is replaced by a
+            // softened version V_sc(r) to prevent infinite energies at r=0.
+            // The force is also modified accordingly to be consistent with the potential.
+            //
+            // The soft-core potential V_sc(r) has the functional form:
+            // V_sc(r) = lambda^n / sqrt(alpha_c * (1-lambda)^2 + r^2)
+            // where lambda is the coupling parameter, and n and alpha_c are constants.
+            //
+            // The potential energy term (s0r) is calculated by substituting 1/r with V_sc(r)
+            // in the damped Coulomb expression.
+            // U(r)/(q1*q2) = s0r = ( (elec_scale_factor - erf(alpha*r) - exp(-v5)) * V_sc(r) ) + Thole_gamma(r)
+            //
+            // The force kernel (s1r3) is calculated using a specific formulation:
+            // s1r3 = term_A * term_B
+            // term_A = - (1/r) * d(V_sc)/dr = (lambda^n * r) / (alpha_c*(1-lambda)^2 + r^2)^(3/2)
+            // term_B = Standard (non-soft-core) force kernel for the damped part of the interaction.
+            // This ensures the force goes to zero as r->0.
 
-        if (!use_pbc) {
-            // Rescale v3 to ensure right behavior in no PBC conditions
-            v3 *= elec_scale_factor;
-            v4 = v3;
+            // Print statement to indicate an ion is found
+            std::cout << "ion found - energy - opt - chr1: " << chg1[site_inmon1 + mon1_index] << 
+                    ", chr2: " << chg2[site_jnmon2 + m] << ", lambda: " << lambda << std::endl;
+
+            // 1. Calculate common terms using the raw distance, r
+            const double r_raw = std::sqrt(r_sq);
+            const double v5 = aCC * r_sq * r_sq * Asqsqi; // Thole argument uses r_raw
+            const double erf_term = use_pbc ? erf(ewald_alpha * r_raw) : 0.0;
+            // ---- with Thole -------
+            const double exp1 = elec_scale_factor * std::exp(-v5);
+            const double gamma_term = gammq(0.75, v5) * elec_scale_factor;
+            // ----- without Thole --------
+            // const double exp1 = 0;
+            // const double gamma_term = 0;
+
+            // 2. Calculate Energy Term (s0r) using the soft-core potential V_sc(r)
+            // The term inv_r_eff corresponds to V_sc(r).
+            const double inv_r_eff = std::pow(lambda, n) / std::sqrt(alpha_c * std::pow(1 - lambda, 2) + r_sq);
+            const double s1r_potential_soft = (elec_scale_factor - erf_term - exp1) * inv_r_eff;
+            s0r = s1r_potential_soft + aCC1_4 * Ai * g34 * gamma_term;
+
+            // 3. Calculate Force Term (s1r3)
+            // Term A: The scaled derivative of the soft-core potential function.
+            const double term_A = (std::pow(lambda, n) * r_raw) / std::pow(alpha_c * std::pow(1 - lambda, 2) + r_sq, 1.5);
+
+            // Term B: The standard (non-soft-core) force kernel.
+            // const double r_eff = 1.0 / inv_r_eff;
+            const double damped_potential_terms = elec_scale_factor - erf_term - exp1;
+            const double kernel_part1 = damped_potential_terms / r_raw;
+            // Ewald direct space component of the force.
+            // Terms needed for the Ewald direct space field, see equation 2.8 of
+            // A. Y. Toukmaji, C. Sagui, J. Board and T. A. Darden, J. Chem. Phys., 113 10913 (2000).
+            const double exp_alpha2r2 = std::exp(-ewald_alpha * ewald_alpha * r_sq);
+            const double ewaldterm_force = use_pbc ? (2 * exp_alpha2r2 * ewald_alpha / PIQSRT) : 0.0;
+            const double term_B = kernel_part1 + ewaldterm_force;
+            
+            s1r3 = term_A * term_B;
+
+        } else {
+            // --- STANDARD Case ---
+            double inv_r = (r_sq > 0) ? 1.0 / std::sqrt(r_sq) : 0.0;
+            if (r_sq == 0 || r_sq > cutoff * cutoff) {
+                inv_r = 0.0;
+            }
+
+            double v5 = aCC * r_sq * r_sq * Asqsqi;
+            double v4 = (elec_scale_factor - erf(ewald_alpha * (r_sq > 0 ? std::sqrt(r_sq) : 0.0))) * inv_r;
+            if (!use_pbc) { v4 = elec_scale_factor * inv_r; }
+            
+            // ---- with Thole -------
+            const double exp1 = elec_scale_factor * std::exp(-v5);
+            const double gamma_term = gammq(0.75, v5) * elec_scale_factor;
+            // ----- without Thole --------
+            // const double exp1 = 0;
+            // const double gamma_term = 0;
+
+            // Terms needed for the Ewald direct space field, see equation 2.8 of
+            // A. Y. Toukmaji, C. Sagui, J. Board and T. A. Darden, J. Chem. Phys., 113 10913 (2000).
+            const double exp_alpha2r2 = (inv_r > 0) ? std::exp(-ewald_alpha * ewald_alpha * r_sq) : 0.0;
+            const double ewaldterm = use_pbc ? 2 * exp_alpha2r2 * ewald_alpha / PIQSRT : 0;
+            
+            const double s1r = v4 - exp1 * inv_r;
+            s0r = (s1r + aCC1_4 * Ai * g34 * gamma_term);
+            s1r3 = (s1r + ewaldterm) * inv_r * inv_r;
         }
-
-        // Compute gammq and store result in vector. This loop is not vectorizable
-        double v6 = gammq(0.75, v5) * elec_scale_factor;  // gammq
-
-        // Finalize computation of electric field
-
-#if NO_THOLE
-        const double exp1 = 0;
-        v6 = 0;
-#else
-        const double exp1 = elec_scale_factor * std::exp(-v5);
-#endif
-        // Terms needed for the Ewald direct space field, see equation 2.8 of
-        // A. Y. Toukmaji, C. Sagui, J. Board and T. A. Darden, J. Chem. Phys., 113 10913 (2000).
-        const double exp_alpha2r2 = std::exp(-ewald_alpha * ewald_alpha / (v3 * v3));
-        const bool use_ewald = use_pbc;
-        const double ewaldterm = use_ewald ? 2 * exp_alpha2r2 * ewald_alpha / PIQSRT : 0;
-
-        // Screening functions
-        const double s1r = v4 - exp1 * v3;
-        const double s0r = (s1r + aCC1_4 * Ai * g34 * v6);
-        const double s1r3 = (s1r + ewaldterm) * v3 * v3;
 
         // Compute contribution to the field phi
         // Storing the contrib to mon 1 in vector to make it vectorizable
@@ -1000,7 +1062,7 @@ void ElectricFieldHolder::CalcElecFieldGrads(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, double lambda, std::vector<double> *virial) {
     // Shifts that will be useful in the loops
     const size_t nmon12 = nmon1 * 2;
     const size_t nmon22 = nmon2 * 2;
@@ -1283,7 +1345,7 @@ void ElectricFieldHolder::CalcElecFieldGrads_Optimized(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, double lambda, std::vector<double> *virial) {
 
     
     double *rijx_vec = precomputedInformation.rijx.data();

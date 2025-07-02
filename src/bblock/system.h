@@ -1155,6 +1155,15 @@ class System {
     std::vector<size_t> GetInfoDispersionCounts();
     std::vector<double> GetInfoDispersionTimings();
 
+    /**
+   * @brief Sets the lambda scaling factor.
+   * @param lambda The lambda value.
+   */
+    void SetLambda(double lambda);
+
+    // Getter for lambda
+    double GetLambda() const;
+
    private:
     /**
      * Fills the dimers_(i,j) and/or trimers_(i,j,k) vectors, with
@@ -1807,6 +1816,11 @@ class System {
      * States if the initialization is PME only or not"
      */
     // bool isPME_;
+
+    /**
+    * @brief Lambda scaling factor for energy terms (often used in Free Energy Perturbation).
+    */
+    double lambda_;
 };
 
 }  // namespace bblock
