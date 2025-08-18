@@ -331,7 +331,7 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
         double s0r;
         double s1r3;
 
-        std::cout << "opt: chr1: " << chg1[site_inmon1 + mon1_index] << ", chr2: " << chg2[site_jnmon2 + m] << std::endl;
+        // std::cout << "opt: chr1: " << chg1[site_inmon1 + mon1_index] << ", chr2: " << chg2[site_jnmon2 + m] << std::endl;
 
         // --- Check for Soft Core and apply modifications ---
         if ((std::abs(chg1[site_inmon1 + mon1_index] - lambda) < tolerance ||
@@ -358,8 +358,8 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
             // This ensures the force goes to zero as r->0.
 
             // Print statement to indicate an ion is found
-            std::cout << "ion found - energy - opt - chr1: " << chg1[site_inmon1 + mon1_index] << 
-                    ", chr2: " << chg2[site_jnmon2 + m] << ", lambda: " << lambda << std::endl;
+            // std::cout << "ion found - energy - opt - chr1: " << chg1[site_inmon1 + mon1_index] << 
+            //         ", chr2: " << chg2[site_jnmon2 + m] << ", lambda: " << lambda << std::endl;
 
             // 1. Calculate common terms using the raw distance, r
             const double r_raw = std::sqrt(r_sq);
