@@ -67,7 +67,7 @@ void ElectricFieldHolder::CalcPermanentElecField(
     double *phi2, double *Efq2, double elec_scale_factor, double ewald_alpha, bool use_pbc,
     const std::vector<double> &box, const std::vector<double> &box_inverse, double cutoff, bool use_ghost,
     const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset, size_t m2_offset,
-    double elec_lambda, std::vector<double> *virial
+    std::vector<double> *virial
 ) {
 
     // These shifts are for vector indexing and will be useful in the loops
@@ -1062,7 +1062,7 @@ void ElectricFieldHolder::CalcElecFieldGrads(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, double elec_lambda, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, std::vector<double> *virial) {
     // Shifts that will be useful in the loops
     const size_t nmon12 = nmon1 * 2;
     const size_t nmon22 = nmon2 * 2;
@@ -1345,7 +1345,7 @@ void ElectricFieldHolder::CalcElecFieldGrads_Optimized(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, double elec_lambda, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, std::vector<double> *virial) {
 
     
     double *rijx_vec = precomputedInformation.rijx.data();

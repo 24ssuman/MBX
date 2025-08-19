@@ -150,7 +150,6 @@ class ElectricFieldHolder {
                                 bool use_ghost,                          // use ghost monomers
                                 const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
                                 const size_t m2_offset,
-                                double elec_lambda,                           // Moved elec_lambda before virial
                                 std::vector<double> *virial = 0);        // The virial, now at the end 
 
     // Computes the electric field for a pair of sites for a number of monomers
@@ -333,7 +332,6 @@ class ElectricFieldHolder {
                             double cutoff,                           // The real space cutoff for pairs
                             bool use_ghost,                          // use ghost monomers
                             const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
-                            double elec_lambda,                           // Moved elec_lambda before virial
                             std::vector<double> *virial = 0  // the virial
     );
 
@@ -364,7 +362,6 @@ class ElectricFieldHolder {
                             bool use_ghost,                          // use ghost monomers
                             const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset,
                             PrecomputedInfo& precomputedInformation,
-                            double elec_lambda,                           // Moved elec_elec_lambda before virial
                             std::vector<double> *virial = 0  // the virial
     );
 
