@@ -218,7 +218,7 @@ class Electrostatics {
     void SetNewParameters(const std::vector<double> &xyz, const std::vector<double> &chg,
                           const std::vector<double> &chg_grad, const std::vector<double> &pol,
                           const std::vector<double> &polfac, const std::string dip_method, const bool do_grads,
-                          const std::vector<double> &box = {}, const double cutoff = 100.0, const double lambda = 1.0);
+                          const std::vector<double> &box = {}, const double cutoff = 100.0, const double elec_lambda = 1.0);
 
     /**
      * @brief Sets the cutoff for electrostatic interactions
@@ -761,7 +761,7 @@ class Electrostatics {
     // User-specified FFT grid
     std::vector<int> user_fft_grid_;
 
-    double lambda_; // Lambda scaling factor
+    double elec_lambda_; // elec_lambda scaling factor
 
     size_t nncomm_nswap;
     std::vector<int> nncomm_sendproc;

@@ -126,7 +126,7 @@ System::System() {
     proc_grid_y_ = 1;
     proc_grid_z_ = 1;
 
-    lambda_ = 1.0; // Add this line to initialize lambda
+    elec_lambda_ = 1.0; // Add this line to initialize elec_lambda
 }
 System::~System() {}
 
@@ -1561,15 +1561,15 @@ void System::SetUpFromJson(nlohmann::json j) {
     }
     mbx_j_["MBX"]["monomers_file"] = monomers_json_file;
 
-    // Try to get lambda
+    // Try to get elec_lambda
     // Default: 1.0
     try {
-        lambda_ = j["MBX"]["lambda"];
+        elec_lambda_ = j["MBX"]["elec_lambda"];
     } catch (...) {
         // if (mpi_rank_ == 0)
-        //     std::cerr << "**WARNING** \"lambda\" is not defined in json file. Using default value 1.0\n";
+        //     std::cerr << "**WARNING** \"elec_lambda\" is not defined in json file. Using default value 1.0\n";
     }
-    mbx_j_["MBX"]["lambda"] = lambda_;
+    mbx_j_["MBX"]["elec_lambda"] = elec_lambda_;
 
     SetPBC(box_);
 }
@@ -3587,7 +3587,7 @@ void System::SetPeriodicity(bool periodic) {
 ////////////////////////////////////////////////////////////////////////////////
 
 double System::GetElectrostatics(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, lambda_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, elec_lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
@@ -3599,7 +3599,7 @@ double System::GetElectrostatics(bool do_grads, bool use_ghost) {
 }
 
 double System::GetElectrostaticsMPIlocal(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, lambda_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, elec_lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
@@ -3877,12 +3877,12 @@ std::vector<double> System::GetInfoDispersionTimings() { return dispersionE_.Get
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double System::GetLambda() const {
-    return lambda_;
+double System::GetElecLambda() const {
+    return elec_lambda_;
 }
 
-void System::SetLambda(double lambda) {
-    lambda_ = lambda;
+void System::SetElecLambda(double elec_lambda) {
+    elec_lambda_ = elec_lambda;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

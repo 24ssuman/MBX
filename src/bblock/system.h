@@ -1156,13 +1156,13 @@ class System {
     std::vector<double> GetInfoDispersionTimings();
 
     /**
-   * @brief Sets the lambda scaling factor.
-   * @param lambda The lambda value.
+   * @brief Sets the elec_lambda scaling factor.
+   * @param elec_lambda The elec_lambda value.
    */
-    void SetLambda(double lambda);
+    void SetElecLambda(double elec_lambda);
 
-    // Getter for lambda
-    double GetLambda() const;
+    // Getter for elec_lambda
+    double GetElecLambda() const;
 
    private:
     /**
@@ -1820,7 +1820,7 @@ class System {
     /**
     * @brief Lambda scaling factor for energy terms (often used in Free Energy Perturbation).
     */
-    double lambda_;
+    double elec_lambda_;
 };
 
 }  // namespace bblock

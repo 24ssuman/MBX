@@ -67,7 +67,7 @@ void ElectricFieldHolder::CalcPermanentElecField(
     double *phi2, double *Efq2, double elec_scale_factor, double ewald_alpha, bool use_pbc,
     const std::vector<double> &box, const std::vector<double> &box_inverse, double cutoff, bool use_ghost,
     const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset, size_t m2_offset,
-    double lambda, std::vector<double> *virial
+    double elec_lambda, std::vector<double> *virial
 ) {
 
     // These shifts are for vector indexing and will be useful in the loops
@@ -249,7 +249,7 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
     double *phi2, double *Efq2, double elec_scale_factor, double ewald_alpha, bool use_pbc,
     const std::vector<double> &box, const std::vector<double> &box_inverse, double cutoff, bool use_ghost,
     const std::vector<size_t> &islocal, const size_t isl1_offset, const size_t isl2_offset, size_t m2_offset,
-    PrecomputedInfo& precomputedInformation, double lambda,
+    PrecomputedInfo& precomputedInformation, double elec_lambda,
     std::vector<double> *virial) {
 
     double *rijx_vec = precomputedInformation.rijx.data();
@@ -334,8 +334,8 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
         // std::cout << "opt: chr1: " << chg1[site_inmon1 + mon1_index] << ", chr2: " << chg2[site_jnmon2 + m] << std::endl;
 
         // --- Check for Soft Core and apply modifications ---
-        if ((std::abs(chg1[site_inmon1 + mon1_index] - lambda) < tolerance ||
-            std::abs(chg2[site_jnmon2 + m] - lambda) < tolerance) && r_sq < cutoff * cutoff)
+        if ((std::abs(chg1[site_inmon1 + mon1_index] - elec_lambda) < tolerance ||
+            std::abs(chg2[site_jnmon2 + m] - elec_lambda) < tolerance) && r_sq < cutoff * cutoff)
         {
             // --- SOFT-CORE Case ---
 
@@ -344,8 +344,8 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
             // The force is also modified accordingly to be consistent with the potential.
             //
             // The soft-core potential V_sc(r) has the functional form:
-            // V_sc(r) = lambda^n / sqrt(alpha_c * (1-lambda)^2 + r^2)
-            // where lambda is the coupling parameter, and n and alpha_c are constants.
+            // V_sc(r) = elec_lambda^n / sqrt(alpha_c * (1-elec_lambda)^2 + r^2)
+            // where elec_lambda is the coupling parameter, and n and alpha_c are constants.
             //
             // The potential energy term (s0r) is calculated by substituting 1/r with V_sc(r)
             // in the damped Coulomb expression.
@@ -353,13 +353,13 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
             //
             // The force kernel (s1r3) is calculated using a specific formulation:
             // s1r3 = term_A * term_B
-            // term_A = - (1/r) * d(V_sc)/dr = (lambda^n * r) / (alpha_c*(1-lambda)^2 + r^2)^(3/2)
+            // term_A = - (1/r) * d(V_sc)/dr = (elec_lambda^n * r) / (alpha_c*(1-elec_lambda)^2 + r^2)^(3/2)
             // term_B = Standard (non-soft-core) force kernel for the damped part of the interaction.
             // This ensures the force goes to zero as r->0.
 
             // Print statement to indicate an ion is found
             // std::cout << "ion found - energy - opt - chr1: " << chg1[site_inmon1 + mon1_index] << 
-            //         ", chr2: " << chg2[site_jnmon2 + m] << ", lambda: " << lambda << std::endl;
+            //         ", chr2: " << chg2[site_jnmon2 + m] << ", elec_lambda: " << elec_lambda << std::endl;
 
             // 1. Calculate common terms using the raw distance, r
             const double r_raw = std::sqrt(r_sq);
@@ -374,13 +374,13 @@ void ElectricFieldHolder::CalcPermanentElecField_Optimized(
 
             // 2. Calculate Energy Term (s0r) using the soft-core potential V_sc(r)
             // The term inv_r_eff corresponds to V_sc(r).
-            const double inv_r_eff = std::pow(lambda, n) / std::sqrt(alpha_c * std::pow(1 - lambda, 2) + r_sq);
+            const double inv_r_eff = std::pow(elec_lambda, n) / std::sqrt(alpha_c * std::pow(1 - elec_lambda, 2) + r_sq);
             const double s1r_potential_soft = (elec_scale_factor - erf_term - exp1) * inv_r_eff;
             s0r = s1r_potential_soft + aCC1_4 * Ai * g34 * gamma_term;
 
             // 3. Calculate Force Term (s1r3)
             // Term A: The scaled derivative of the soft-core potential function.
-            const double term_A = (std::pow(lambda, n) * r_raw) / std::pow(alpha_c * std::pow(1 - lambda, 2) + r_sq, 1.5);
+            const double term_A = (std::pow(elec_lambda, n) * r_raw) / std::pow(alpha_c * std::pow(1 - elec_lambda, 2) + r_sq, 1.5);
 
             // Term B: The standard (non-soft-core) force kernel.
             // const double r_eff = 1.0 / inv_r_eff;
@@ -1062,7 +1062,7 @@ void ElectricFieldHolder::CalcElecFieldGrads(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, double lambda, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, double elec_lambda, std::vector<double> *virial) {
     // Shifts that will be useful in the loops
     const size_t nmon12 = nmon1 * 2;
     const size_t nmon22 = nmon2 * 2;
@@ -1345,7 +1345,7 @@ void ElectricFieldHolder::CalcElecFieldGrads_Optimized(
     double aDD, double aCD, double Asqsqi, double *grdx, double *grdy, double *grdz, double *phi1, double *phi2,
     double *grd2, double elec_scale_factor, double ewald_alpha, bool use_pbc, const std::vector<double> &box,
     const std::vector<double> &box_inverse, double cutoff, bool use_ghost, const std::vector<size_t> &islocal,
-    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, double lambda, std::vector<double> *virial) {
+    const size_t isl1_offset, const size_t isl2_offset, PrecomputedInfo& precomputedInformation, double elec_lambda, std::vector<double> *virial) {
 
     
     double *rijx_vec = precomputedInformation.rijx.data();
