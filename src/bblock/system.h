@@ -1164,6 +1164,24 @@ class System {
     // Getter for elec_lambda
     double GetElecLambda() const;
 
+    /**
+   * @brief Sets the two_b_lambda scaling factor.
+   * @param two_b_lambda The two_b_lambda value.
+   */
+  void Set2BLambda(double two_b_lambda);
+
+  // Getter for two_b_lambda
+  double Get2BLambda() const;
+
+    /**
+   * @brief Sets the three_b_lambda scaling factor.
+   * @param three_b_lambda The three_b_lambda value.
+   */
+  void Set3BLambda(double three_b_lambda);
+
+  // Getter for three_b_lambda
+  double Get3BLambda() const;
+
    private:
     /**
      * Fills the dimers_(i,j) and/or trimers_(i,j,k) vectors, with
@@ -1818,9 +1836,19 @@ class System {
     // bool isPME_;
 
     /**
-    * @brief Lambda scaling factor for energy terms (often used in Free Energy Perturbation).
+    * @brief Lambda scaling factor for electrostatics terms
     */
     double elec_lambda_;
+
+    /**
+    * @brief Lambda scaling factor for 2B ion-water term
+    */
+   double two_b_lambda_;
+
+    /**
+    * @brief Lambda scaling factor for 3B ion-water term
+    */
+   double three_b_lambda_;
 };
 
 }  // namespace bblock

@@ -126,7 +126,9 @@ System::System() {
     proc_grid_y_ = 1;
     proc_grid_z_ = 1;
 
-    elec_lambda_ = 1.0; // Add this line to initialize elec_lambda
+    elec_lambda_ = 1.0; // initialize elec_lambda - default is 1.0
+    two_b_lambda_ = 1.0; // initialize two_b_lambda - default is 1.0
+    three_b_lambda_ = 1.0; // initialize three_b_lambda - default is 1.0
 }
 System::~System() {}
 
@@ -1571,6 +1573,26 @@ void System::SetUpFromJson(nlohmann::json j) {
     }
     mbx_j_["MBX"]["elec_lambda"] = elec_lambda_;
 
+    // Try to get two_b_lambda
+    // Default: 1.0
+    try {
+        two_b_lambda_ = j["MBX"]["two_b_lambda"];
+    } catch (...) {
+        if (mpi_rank_ == 0)
+            std::cerr << "**WARNING** \"two_b_lambda\" is not defined in json file. Using default value 1.0\n";
+    }
+    mbx_j_["MBX"]["two_b_lambda"] = two_b_lambda_;
+
+    // Try to get three_b_lambda
+    // Default: 1.0
+    try {
+        three_b_lambda_ = j["MBX"]["three_b_lambda"];
+    } catch (...) {
+        // if (mpi_rank_ == 0)
+        //     std::cerr << "**WARNING** \"three_b_lambda\" is not defined in json file. Using default value 1.0\n";
+    }
+    mbx_j_["MBX"]["three_b_lambda"] = three_b_lambda_;
+
     SetPBC(box_);
 }
 
@@ -2562,8 +2584,7 @@ double System::Get2B(bool do_grads, bool use_ghost) {
                 if (use_poly) {
                     if (do_grads) {
                         // POLYNOMIALS
-                        e2b_pool[rank] += e2b::get_2b_energy(m1, m2, nd, xyz1, xyz2, grad1, grad2, &virial);
-
+                        e2b_pool[rank] += e2b::get_2b_energy(m1, m2, nd, xyz1, xyz2, grad1, grad2,two_b_lambda_, &virial);
                         for (size_t k = 0; k < 9; k++) {  // accumulate virial tensor from pool
 
                             virial_pool[rank][k] += virial[k];
@@ -2583,7 +2604,7 @@ double System::Get2B(bool do_grads, bool use_ghost) {
                             }
                         }
                     } else {
-                        e2b_pool[rank] += e2b::get_2b_energy(m1, m2, nd, xyz1, xyz2);
+                        e2b_pool[rank] += e2b::get_2b_energy(m1, m2, nd, xyz1, xyz2, two_b_lambda_);
                     }
                 }
 
@@ -3883,6 +3904,22 @@ double System::GetElecLambda() const {
 
 void System::SetElecLambda(double elec_lambda) {
     elec_lambda_ = elec_lambda;
+}
+
+double System::Get2BLambda() const {
+    return two_b_lambda_;
+}
+
+void System::Set2BLambda(double two_b_lambda) {
+    two_b_lambda_ = two_b_lambda;
+}
+
+double System::Get3BLambda() const {
+    return three_b_lambda_;
+}
+
+void System::Set3BLambda(double three_b_lambda) {
+    three_b_lambda_ = three_b_lambda;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

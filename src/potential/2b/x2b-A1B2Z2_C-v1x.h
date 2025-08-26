@@ -80,7 +80,7 @@ class x2b_h2o_ion_v2x {
      * @return Double with the sum of the energies of each dimer.
      */
     double eval(const double* w1, const double* x, double* g1, double* g2, const size_t nd,
-                std::vector<double>* virial = 0);
+                double two_b_lambda,std::vector<double>* virial = 0);
 
     /**
      * @brief Computes the two body polynomials for the dimers
@@ -92,7 +92,7 @@ class x2b_h2o_ion_v2x {
      * @param[in] nd Number of dimers passed in the xyz arrays.
      * @return Double with the sum of the energies of each dimer.
      */
-    double eval(const double* w1, const double* x, const size_t nd);
+    double eval(const double* w1, const double* x, const size_t nd, double two_b_lambda);
 
    private:
     // Values of the non-linear parameters of the polynomials
@@ -126,6 +126,8 @@ class x2b_h2o_ion_v2x {
 
     // Values of the linear parameters of the polynomials
     std::vector<double> twobodyfit;
+    
+    double two_b_lambda; // Parameter to scale the 2-body energy of ion-water
 };
 
 //----------------------------------------------------------------------------//
