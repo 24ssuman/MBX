@@ -3608,7 +3608,8 @@ void System::SetPeriodicity(bool periodic) {
 ////////////////////////////////////////////////////////////////////////////////
 
 double System::GetElectrostatics(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, elec_lambda_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_,
+                                     cutoff_realspace_, elec_lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
@@ -3620,7 +3621,8 @@ double System::GetElectrostatics(bool do_grads, bool use_ghost) {
 }
 
 double System::GetElectrostaticsMPIlocal(bool do_grads, bool use_ghost) {
-    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_, cutoff2b_, elec_lambda_);
+    electrostaticE_.SetNewParameters(xyz_, chg_, chggrad_, pol_, polfac_, dipole_method_, do_grads, box_,
+                                     cutoff_realspace_, elec_lambda_);
     electrostaticE_.SetDipoleTolerance(diptol_);
     electrostaticE_.SetDipoleMaxIt(maxItDip_);
     electrostaticE_.SetEwaldAlpha(elec_alpha_);
